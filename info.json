@@ -1,6 +1,6 @@
 ﻿{
-  "isim": "snake",
-  "aciklama": "snake projesi.",
+  "isim": "Snake Game",
+  "aciklama": "Klasik yılan oyununu oynayın ve en yüksek puanı elde etmeye çalışın!",
   "gorunurluluk": true,
-  "game": false
+  "game": true
 }

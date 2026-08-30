@@ -3,9 +3,488 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>snake</title>
+    <title>Snake Web</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #101010;
+            color: white;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 520px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 42px;
+            margin-bottom: 15px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            background: #1b1b1b;
+            border-radius: 12px;
+            padding: 12px 18px;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        canvas {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background: #080808;
+            border: 3px solid #333;
+            border-radius: 12px;
+            display: block;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 13px;
+            border: none;
+            border-radius: 10px;
+            background: #252525;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+
+        button:hover {
+            background: #333;
+        }
+
+        button:active {
+            transform: scale(0.96);
+        }
+
+        .controls {
+            margin: 20px auto 0;
+            width: 180px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 7px;
+        }
+
+        .controls button {
+            height: 52px;
+            padding: 0;
+            font-size: 22px;
+        }
+
+        .empty {
+            visibility: hidden;
+        }
+
+        .message {
+            min-height: 28px;
+            margin-top: 15px;
+            font-size: 18px;
+            color: #aaa;
+        }
+
+        @media (max-width: 500px) {
+            h1 {
+                font-size: 34px;
+            }
+
+            body {
+                padding: 12px;
+            }
+        }
+    </style>
 </head>
+
 <body>
-    <h1>snake</h1>
+
+<div class="game-container">
+
+    <h1>🐍 Snake</h1>
+
+    <div class="stats">
+        <span>Skor: <strong id="score">0</strong></span>
+        <span>Rekor: <strong id="highScore">0</strong></span>
+    </div>
+
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+    <div class="message" id="message">
+        Başlamak için bir tuşa bas!
+    </div>
+
+    <div class="buttons">
+        <button id="pauseButton">⏸️ Duraklat</button>
+        <button id="restartButton">🔄 Yeniden Başlat</button>
+    </div>
+
+    <div class="controls">
+        <button class="empty"></button>
+        <button data-direction="up">⬆️</button>
+        <button class="empty"></button>
+
+        <button data-direction="left">⬅️</button>
+        <button data-direction="down">⬇️</button>
+        <button data-direction="right">➡️</button>
+    </div>
+
+</div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const scoreElement = document.getElementById("score");
+    const highScoreElement = document.getElementById("highScore");
+    const messageElement = document.getElementById("message");
+
+    const pauseButton = document.getElementById("pauseButton");
+    const restartButton = document.getElementById("restartButton");
+
+    const gridSize = 20;
+    const tileCount = canvas.width / gridSize;
+
+    let snake;
+    let food;
+
+    let direction;
+    let nextDirection;
+
+    let score = 0;
+    let highScore = Number(localStorage.getItem("snakeHighScore")) || 0;
+
+    let gameRunning = false;
+    let gameOver = false;
+    let paused = false;
+
+    let gameSpeed = 110;
+    let lastTime = 0;
+
+    highScoreElement.textContent = highScore;
+
+
+    function startGame() {
+        snake = [
+            { x: 10, y: 10 },
+            { x: 9, y: 10 },
+            { x: 8, y: 10 }
+        ];
+
+        direction = "right";
+        nextDirection = "right";
+
+        score = 0;
+        gameSpeed = 110;
+
+        gameRunning = true;
+        gameOver = false;
+        paused = false;
+
+        scoreElement.textContent = score;
+        pauseButton.textContent = "⏸️ Duraklat";
+        messageElement.textContent = "";
+
+        spawnFood();
+    }
+
+
+    function spawnFood() {
+        do {
+            food = {
+                x: Math.floor(Math.random() * tileCount),
+                y: Math.floor(Math.random() * tileCount)
+            };
+        } while (
+            snake.some(segment =>
+                segment.x === food.x && segment.y === food.y
+            )
+        );
+    }
+
+
+    function draw() {
+        ctx.fillStyle = "#080808";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        drawFood();
+        drawSnake();
+    }
+
+
+    function drawSnake() {
+        snake.forEach((segment, index) => {
+
+            ctx.fillStyle = index === 0 ? "#ffffff" : "#aaaaaa";
+
+            ctx.fillRect(
+                segment.x * gridSize + 1,
+                segment.y * gridSize + 1,
+                gridSize - 2,
+                gridSize - 2
+            );
+        });
+    }
+
+
+    function drawFood() {
+        ctx.fillStyle = "#ffffff";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            food.x * gridSize + gridSize / 2,
+            food.y * gridSize + gridSize / 2,
+            gridSize / 2 - 3,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fill();
+    }
+
+
+    function update() {
+
+        if (!gameRunning || paused || gameOver) {
+            return;
+        }
+
+        direction = nextDirection;
+
+        const head = {
+            x: snake[0].x,
+            y: snake[0].y
+        };
+
+
+        if (direction === "up") {
+            head.y--;
+        }
+
+        if (direction === "down") {
+            head.y++;
+        }
+
+        if (direction === "left") {
+            head.x--;
+        }
+
+        if (direction === "right") {
+            head.x++;
+        }
+
+
+        // Duvar çarpması
+        if (
+            head.x < 0 ||
+            head.x >= tileCount ||
+            head.y < 0 ||
+            head.y >= tileCount
+        ) {
+            endGame();
+            return;
+        }
+
+
+        // Kendine çarpma
+        if (
+            snake.some(segment =>
+                segment.x === head.x &&
+                segment.y === head.y
+            )
+        ) {
+            endGame();
+            return;
+        }
+
+
+        snake.unshift(head);
+
+
+        // Yemek
+        if (
+            head.x === food.x &&
+            head.y === food.y
+        ) {
+
+            score++;
+
+            scoreElement.textContent = score;
+
+            if (score > highScore) {
+                highScore = score;
+
+                localStorage.setItem(
+                    "snakeHighScore",
+                    highScore
+                );
+
+                highScoreElement.textContent = highScore;
+            }
+
+            // Oyun ilerledikçe biraz hızlanır
+            gameSpeed = Math.max(
+                55,
+                110 - score * 2
+            );
+
+            spawnFood();
+
+        } else {
+            snake.pop();
+        }
+    }
+
+
+    function endGame() {
+
+        gameRunning = false;
+        gameOver = true;
+
+        messageElement.textContent =
+            `Oyun bitti! Skorun: ${score}`;
+
+        pauseButton.textContent = "⏸️ Duraklat";
+
+        draw();
+    }
+
+
+    function togglePause() {
+
+        if (!gameRunning || gameOver) {
+            return;
+        }
+
+        paused = !paused;
+
+        if (paused) {
+            pauseButton.textContent = "▶️ Devam Et";
+            messageElement.textContent = "Oyun duraklatıldı.";
+        } else {
+            pauseButton.textContent = "⏸️ Duraklat";
+            messageElement.textContent = "";
+        }
+    }
+
+
+    function changeDirection(newDirection) {
+
+        if (!gameRunning) {
+            startGame();
+        }
+
+        if (paused || gameOver) {
+            return;
+        }
+
+        const opposites = {
+            up: "down",
+            down: "up",
+            left: "right",
+            right: "left"
+        };
+
+        if (newDirection !== opposites[direction]) {
+            nextDirection = newDirection;
+        }
+    }
+
+
+    document.addEventListener("keydown", event => {
+
+        const keys = {
+            ArrowUp: "up",
+            w: "up",
+            W: "up",
+
+            ArrowDown: "down",
+            s: "down",
+            S: "down",
+
+            ArrowLeft: "left",
+            a: "left",
+            A: "left",
+
+            ArrowRight: "right",
+            d: "right",
+            D: "right"
+        };
+
+        if (event.key === " ") {
+            event.preventDefault();
+            togglePause();
+            return;
+        }
+
+        if (keys[event.key]) {
+            event.preventDefault();
+            changeDirection(keys[event.key]);
+        }
+    });
+
+
+    document.querySelectorAll("[data-direction]").forEach(button => {
+
+        button.addEventListener("click", () => {
+            changeDirection(button.dataset.direction);
+        });
+
+    });
+
+
+    pauseButton.addEventListener("click", togglePause);
+
+
+    restartButton.addEventListener("click", () => {
+        startGame();
+        draw();
+    });
+
+
+    function gameLoop(timestamp) {
+
+        if (!lastTime) {
+            lastTime = timestamp;
+        }
+
+        if (
+            timestamp - lastTime >= gameSpeed
+        ) {
+            update();
+            draw();
+            lastTime = timestamp;
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+
+    startGame();
+    draw();
+
+    requestAnimationFrame(gameLoop);
+</script>
+
 </body>
 </html>
